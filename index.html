@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Deploy &lt;/KERNEL&gt;</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=Archivo+Black&display=swap" rel="stylesheet">
+
+<style>
+    @font-face {
+  font-family: 'kerns';
+  src: url('font.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+}
+  :root{
+    --bg:            #08080A;
+    --surface:       #131316;
+    --border:        #2A2A31;
+    --text:          #F1F1EF;
+    --text-mute:     #bbbbc1;
+    --accent:        #B12C5B;
+    --accent-bright: #E2678F;
+    --accent-dim:    #4A1526;
+    --accent-ink:    #FBEAF0;
+    --mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+    --logo: 'kerns', sans-serif;
+  }
+  *,*::before,*::after{ box-sizing:border-box; }
+  html,body{ height:100%; }
+  body{
+    margin:0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+  }
+
+  /* ---------- backdrop ---------- */
+  .backdrop{
+    position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background-image:
+      linear-gradient(rgba(241,241,239,0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(241,241,239,0.035) 1px, transparent 1px),
+      radial-gradient(ellipse 900px 600px at 50% 15%, rgba(247, 239, 242, 0.048), transparent 60%),
+      radial-gradient(ellipse 700px 500px at 90% 90%, rgba(177,44,91,0.08), transparent 60%);
+    background-size: 42px 42px, 42px 42px, auto, auto;
+    background-position: center, center, center, center;
+    transition: filter 0.15s ease;
+  }
+  .backdrop::after{
+    content:"";
+    position: absolute; inset: 0;
+    background: radial-gradient(circle at 50% 50%, transparent 40%, var(--bg) 100%);
+  }
+
+  /* ---------- impact system (replaces the old flat flash) ---------- */
+  .impact-layer{
+    position: fixed; inset: 0; z-index: 6; pointer-events: none;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  .shock-ring{
+    position: absolute;
+    width: 60px; height: 60px;
+    border-radius: 50%;
+    border: 2px solid var(--accent-bright);
+    opacity: 0;
+    transform: scale(0.3);
+  }
+
+  .impact-core{
+    position: absolute;
+    width: 140px; height: 140px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #fff 0%, var(--accent-bright) 35%, var(--accent) 65%, transparent 75%);
+    opacity: 0;
+    mix-blend-mode: screen;
+  }
+
+  .particle{
+    position: absolute;
+    width: 6px; height: 6px;
+    background: var(--accent-bright);
+    opacity: 0;
+    top: 50%; left: 50%;
+  }
+
+  .rgb-split{
+    position: fixed; inset: 0; z-index: 7; pointer-events: none;
+    opacity: 0;
+    background: transparent;
+  }
+
+  /* ---------- stage ---------- */
+  .stage{
+    position: relative; z-index: 1;
+    height: 100vh; width: 100vw;
+    display: flex; align-items: center; justify-content: center;
+    perspective: 1400px;
+  }
+
+  .panel{
+    position: absolute;
+    display: flex; flex-direction: column; align-items: center;
+    text-align: center;
+    width: min(92vw, 640px);
+  }
+
+  /* ---------- intro panel ---------- */
+  #intro-panel{ gap: 28px; }
+
+  .prompt-line{
+    font-size: clamp(0.85rem, 2.2vw, 1rem);
+    color: var(--text-mute);
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+  .prompt-sym{ color: var(--accent-bright); margin-right: 0.6em; }
+  .cursor{
+    display: inline-block; width: 0.55em; height: 1em; margin-left: 0.15em;
+    background: var(--accent-bright); vertical-align: -0.15em;
+    animation: blink 1s step-end infinite;
+  }
+  @keyframes blink{ 50%{ opacity: 0; } }
+
+  .deploy-btn{
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: clamp(0.95rem, 2.6vw, 1.15rem);
+    letter-spacing: 0.02em;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 18px 30px;
+    display: inline-flex; align-items: center; gap: 14px;
+    cursor: pointer;
+    position: relative;
+    box-shadow: 0 0 0 0 rgba(177,44,91,0.5);
+    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    animation: pulse-glow 2.6s ease-in-out infinite;
+  }
+  .deploy-btn:hover{
+    border-color: var(--accent-bright);
+    transform: translateY(-2px);
+  }
+  .deploy-btn:active{ transform: translateY(0px) scale(0.98); }
+  .deploy-btn .btn-arrow{ color: var(--accent-bright); transition: transform 0.2s ease; }
+  .deploy-btn:hover .btn-arrow{ transform: translateX(3px); }
+  @keyframes pulse-glow{
+    0%,100% { box-shadow: 0 0 0 0 rgba(177,44,91,0.35); }
+    50%     { box-shadow: 0 0 0 10px rgba(177,44,91,0); }
+  }
+
+  .hint{
+    margin: 0; font-size: 0.8rem; color: var(--text-mute); opacity: 0.7;
+    letter-spacing: 0.02em;
+  }
+
+  #intro-panel.leaving{
+    animation: fadeOut 0.4s ease forwards;
+  }
+  @keyframes fadeOut{ to{ opacity: 0; transform: scale(0.96); } }
+
+  /* ---------- log panel ---------- */
+  #log-panel{
+    align-items: flex-start;
+    text-align: left;
+    gap: 18px;
+    opacity: 0;
+  }
+  #log-panel.show{ animation: fadeIn 0.35s ease forwards; }
+  @keyframes fadeIn{ to{ opacity: 1; } }
+
+  .log-lines{
+    width: 100%;
+    font-size: clamp(0.78rem, 2vw, 0.92rem);
+    color: var(--text-mute);
+    display: flex; flex-direction: column; gap: 7px;
+    min-height: 168px;
+  }
+  .log-lines .line{
+    opacity: 0;
+    animation: lineIn 0.25s ease forwards;
+  }
+  .log-lines .ok{ color: var(--accent-bright); margin-right: 0.6em; }
+  @keyframes lineIn{ from{ opacity:0; transform: translateY(3px); } to{ opacity:1; transform: translateY(0); } }
+
+  .progress{
+    width: 100%; height: 3px; background: var(--border); border-radius: 2px; overflow: hidden;
+  }
+  .progress-fill{
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, var(--accent), var(--accent-bright));
+    transition: width 0.35s ease;
+  }
+  .progress-pct{
+    font-size: 0.75rem; color: var(--text-mute); align-self: flex-end;
+  }
+
+  /* ---------- logo stage ---------- */
+  #logo-panel{
+    opacity: 0;
+    display: flex; flex-direction: column; align-items: center; gap: 34px;
+  }
+  #logo-panel.show{ animation: fadeIn 0.3s ease forwards; }
+
+  .logo-3d{
+    display: flex; align-items: center; justify-content: center;
+    gap: clamp(4px, 1vw, 10px);
+    transform-style: preserve-3d;
+    font-family: var(--logo);
+    font-size: clamp(2.1rem, 9vw, 5rem);
+    line-height: 1;
+  }
+
+  .piece{
+    display: inline-block;
+    transform-style: preserve-3d;
+    opacity: 0;
+    color: var(--text);
+    will-change: transform, opacity, filter;
+  }
+
+  /* sharp, notched corners instead of rounded -- matches the favicon's cut-corner box */
+  .ker-box{
+    background: var(--accent);
+    color: #0a0a0c;
+    padding: 0.04em 0.1em 0.0em 0.15em;
+    border-radius: 0;
+  }
+
+  .logo-glow{
+    position: absolute;
+    width: 640px; height: 320px;
+    background: radial-gradient(circle, rgba(177,44,91,0.35), transparent 65%);
+    filter: blur(10px);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .reveal-copy{
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    opacity: 0; transform: translateY(10px);
+  }
+
+  .status-line{
+    margin: 0; font-size: 0.8rem; letter-spacing: 0.04em; color: var(--accent-bright);
+  }
+  .site-name{
+    margin: 0; font-size: clamp(1rem, 3vw, 1.3rem); font-weight: 500; color: var(--text-mute);
+    font-family: var(--mono);
+  }
+
+  .enter-btn{
+    margin-top: 8px;
+    font-family: var(--mono); font-weight: 700; font-size: 1rem; letter-spacing: 0.02em;
+    color: var(--bg);
+    background: var(--accent-bright);
+    padding: 16px 28px; border-radius: 3px;
+    display: inline-flex; align-items: center; gap: 10px;
+    text-decoration: none;
+    transition: transform 0.2s ease, background 0.2s ease;
+  }
+  .enter-btn:hover{ background: var(--accent-ink); transform: translateY(-2px); }
+  .enter-btn .arrow{ transition: transform 0.2s ease; }
+  .enter-btn:hover .arrow{ transform: translateX(4px); }
+
+  [hidden]{ display: none !important; }
+</style>
+</head>
+<body>
+
+<div class="backdrop" id="backdrop"></div>
+
+<div class="impact-layer" id="impactLayer">
+  <div class="impact-core" id="impactCore"></div>
+  <div class="shock-ring" id="shockRing1"></div>
+  <div class="shock-ring" id="shockRing2"></div>
+</div>
+<div class="rgb-split" id="rgbSplit"></div>
+
+<div class="stage" id="stage">
+
+  <div class="panel" id="intro-panel">
+    <div class="prompt-line"><span class="prompt-sym">$</span><span id="promptText">deploy --project kernel --env production</span><span class="cursor"></span></div>
+    <button class="deploy-btn" id="deployBtn">
+      <span class="btn-label">Initialize deployment</span>
+      <span class="btn-arrow">›</span>
+    </button>
+    <p class="hint">click to launch &lt;/KERNEL&gt;</p>
+  </div>
+
+  <div class="panel" id="log-panel" hidden>
+    <div class="log-lines" id="logLines"></div>
+    <div class="progress"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="progress-pct" id="progressPct">0%</div>
+  </div>
+
+  <div class="panel" id="logo-panel" hidden>
+    <div class="logo-3d" id="logo3d">
+      <span class="piece chev-l">&lt;</span>
+      <span class="piece slash">/</span>
+      <span class="piece ker-box">KER</span>
+      <span class="piece nel">NEL</span>
+      <span class="piece chev-r">&gt;</span>
+    </div>
+    <div class="logo-glow" id="logoGlow"></div>
+    <div class="reveal-copy" id="revealCopy">
+      <p class="status-line">deployment successful</p>
+      <h1 class="site-name">KerNeL is live</h1>
+      <a class="enter-btn" id="enterBtn" href="https://sites.iisertvm.ac.in/kernel/">
+        <span>Enter the site</span><span class="arrow">→</span>
+      </a>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script>
+  document.getElementById('enterBtn').setAttribute('href', 'https://sites.iisertvm.ac.in/kernel/');
+
+  const deployBtn   = document.getElementById('deployBtn');
+  const introPanel  = document.getElementById('intro-panel');
+  const logPanel    = document.getElementById('log-panel');
+  const logoPanel   = document.getElementById('logo-panel');
+  const logLines    = document.getElementById('logLines');
+  const progressFill= document.getElementById('progressFill');
+  const progressPct = document.getElementById('progressPct');
+  const logo3d      = document.getElementById('logo3d');
+  const revealCopy  = document.getElementById('revealCopy');
+  const logoGlow    = document.getElementById('logoGlow');
+  const stage       = document.getElementById('stage');
+  const backdrop    = document.getElementById('backdrop');
+  const impactLayer = document.getElementById('impactLayer');
+  const impactCore  = document.getElementById('impactCore');
+  const shockRing1  = document.getElementById('shockRing1');
+  const shockRing2  = document.getElementById('shockRing2');
+  const rgbSplit    = document.getElementById('rgbSplit');
+
+  const STEPS = [
+    'resolving dependencies',
+    'compiling notebooks',
+    'bundling assets',
+    'provisioning server',
+    'pushing to production',
+  ];
+
+  let clicked = false;
+
+  deployBtn.addEventListener('click', () => {
+    if (clicked) return;
+    clicked = true;
+
+    introPanel.classList.add('leaving');
+    setTimeout(() => {
+      introPanel.hidden = true;
+      logPanel.hidden = false;
+      logPanel.classList.add('show');
+      runBootSequence();
+    }, 380);
+  });
+
+  function runBootSequence(){
+    let i = 0;
+    const perStep = 460;
+
+    function nextStep(){
+      if (i >= STEPS.length){
+        setTimeout(finishBoot, 300);
+        return;
+      }
+      const line = document.createElement('div');
+      line.className = 'line';
+      line.innerHTML = `<span class="ok">[ok]</span>${STEPS[i]}`;
+      logLines.appendChild(line);
+
+      const pct = Math.round(((i + 1) / STEPS.length) * 100);
+      progressFill.style.width = pct + '%';
+      progressPct.textContent = pct + '%';
+
+      i++;
+      setTimeout(nextStep, perStep);
+    }
+    nextStep();
+  }
+
+  function finishBoot(){
+    logPanel.style.transition = 'opacity 0.3s ease';
+    logPanel.style.opacity = '0';
+
+    setTimeout(() => {
+      logPanel.hidden = true;
+      logoPanel.hidden = false;
+      requestAnimationFrame(() => {
+        logoPanel.classList.add('show');
+        runImpact();
+        runAssembly();
+      });
+    }, 280);
+  }
+
+  // ---------- impact: shockwave + particle burst + screen-shake, no flat flash ----------
+  function runImpact(){
+    const tl = gsap.timeline();
+
+    // core flash -- brief, blended, not a full-screen wash
+    tl.set(impactCore, { opacity: 0, scale: 0.4 })
+      .to(impactCore, { opacity: 0.9, scale: 1.6, duration: 0.12, ease: 'power2.out' })
+      .to(impactCore, { opacity: 0, scale: 2.4, duration: 0.35, ease: 'power2.in' }, '<0.02');
+
+    // two staggered shockwave rings expanding outward
+    [shockRing1, shockRing2].forEach((ring, idx) => {
+      tl.fromTo(ring,
+        { opacity: 0.9, scale: 0.3, borderWidth: 3 },
+        { opacity: 0, scale: idx === 0 ? 9 : 13, duration: idx === 0 ? 0.65 : 0.85, ease: 'power3.out' },
+        0.02 + idx * 0.07
+      );
+    });
+
+    // screen shake on the whole stage
+    tl.to(stage, { x: -6, y: 3, duration: 0.045, ease: 'none' }, 0)
+      .to(stage, { x: 5, y: -4, duration: 0.045, ease: 'none' })
+      .to(stage, { x: -3, y: 2, duration: 0.045, ease: 'none' })
+      .to(stage, { x: 2, y: -1, duration: 0.045, ease: 'none' })
+      .to(stage, { x: 0, y: 0, duration: 0.08, ease: 'power2.out' });
+
+    // quick chromatic-aberration flicker via layered text-shadow-style filter
+    tl.to(rgbSplit, {
+      opacity: 0.5,
+      duration: 0.05,
+      onStart: () => {
+        rgbSplit.style.boxShadow = 'inset 0 0 0 9999px rgba(177,44,91,0.06)';
+        rgbSplit.style.backdropFilter = 'none';
+        backdrop.style.filter = 'contrast(1.3) brightness(1.4)';
+      }
+    }, 0.01)
+      .to(rgbSplit, { opacity: 0, duration: 0.25, onComplete: () => { backdrop.style.filter = 'none'; } });
+
+    // particle burst -- small squares flying out from center, fading + spinning
+    const count = 26;
+    const colors = ['var(--accent-bright)', 'var(--accent)', '#ffffff'];
+    for (let i = 0; i < count; i++){
+      const p = document.createElement('div');
+      p.className = 'particle';
+      p.style.background = colors[i % colors.length];
+      const size = 3 + Math.random() * 5;
+      p.style.width = size + 'px';
+      p.style.height = size + 'px';
+      impactLayer.appendChild(p);
+
+      const angle = (Math.PI * 2 * i) / count + Math.random() * 0.3;
+      const dist = 120 + Math.random() * 260;
+      const dx = Math.cos(angle) * dist;
+      const dy = Math.sin(angle) * dist * 0.6; // flatten vertically a bit
+
+      gsap.set(p, { opacity: 0, x: 0, y: 0, rotation: 0 });
+      gsap.to(p, {
+        opacity: 1,
+        duration: 0.06,
+        delay: 0.02 + Math.random() * 0.05
+      });
+      gsap.to(p, {
+        x: dx, y: dy,
+        rotation: Math.random() * 540 - 270,
+        duration: 0.55 + Math.random() * 0.4,
+        ease: 'power3.out',
+        delay: 0.02 + Math.random() * 0.05,
+        onComplete: () => p.remove()
+      });
+      gsap.to(p, {
+        opacity: 0,
+        duration: 0.3,
+        delay: 0.35 + Math.random() * 0.25,
+        ease: 'power1.in'
+      });
+    }
+  }
+
+  // ---------- assembly: pieces fly in from staggered off-stage positions with overshoot ----------
+  function runAssembly(){
+    const pieces = logo3d.querySelectorAll('.piece');
+
+    const origins = [
+      { x: -420, y: -260, z: -700, rot: -50, rotAxis: 'y' }, // <
+      { x: -260, y:  300, z: -650, rot:  70, rotAxis: 'x' }, // /
+      { x:    0, y: -420, z: -900, rot:  35, rotAxis: 'x' }, // KER
+      { x:  300, y:  280, z: -650, rot: -65, rotAxis: 'y' }, // NEL
+      { x:  460, y: -200, z: -650, rot:  80, rotAxis: 'y' }, // >
+    ];
+
+    pieces.forEach((piece, i) => {
+      const o = origins[i];
+      const rotProp = o.rotAxis === 'y' ? { rotationY: o.rot } : { rotationX: o.rot };
+      gsap.set(piece, {
+        x: o.x, y: o.y, z: o.z,
+        ...rotProp,
+        opacity: 0,
+        filter: 'blur(6px)',
+        scale: 0.6
+      });
+    });
+
+    const tl = gsap.timeline({ delay: 0.35 });
+
+    pieces.forEach((piece, i) => {
+      tl.to(piece, {
+        x: 0, y: 0, z: 0,
+        rotationX: 0, rotationY: 0,
+        opacity: 1,
+        filter: 'blur(0px)',
+        scale: 1,
+        duration: 0.85,
+        ease: 'back.out(1.6)'
+      }, i * 0.1);
+    });
+
+    // settle bounce across the whole wordmark
+    tl.to(logo3d, {
+      scale: 1.05,
+      duration: 0.16,
+      ease: 'power2.out'
+    }, '+=0.05')
+      .to(logo3d, {
+        scale: 1,
+        duration: 0.35,
+        ease: 'elastic.out(1, 0.5)'
+      });
+
+    // ambient glow fades in once settled
+    tl.to(logoGlow, { opacity: 1, duration: 0.8, ease: 'power1.out' }, '-=0.5');
+
+    // small secondary shockwave right as it settles, for weight
+    tl.call(() => {
+      gsap.fromTo(shockRing1,
+        { opacity: 0.6, scale: 0.5 },
+        { opacity: 0, scale: 4, duration: 0.5, ease: 'power2.out' }
+      );
+      gsap.to(stage, {
+        x: 0, y: 2, duration: 0.05, yoyo: true, repeat: 3, ease: 'none'
+      });
+    }, null, '-=0.05');
+
+    // copy reveal
+    tl.to(revealCopy, {
+      opacity: 1, y: 0, duration: 0.6, ease: 'power2.out'
+    }, '-=0.1');
+  }
+</script>
+
+</body>
+</html>
